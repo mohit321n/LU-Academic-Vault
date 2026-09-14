@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from app.config import get_settings
 from app.database.connection import engine, Base, SessionLocal
 from app.database.seed import seed_database
-from app.routes import auth, resources, users, admin, search, departments, files
+from app.routes import auth, resources, users, admin, search, departments, files, ai
 
 settings = get_settings()
 
@@ -31,6 +31,7 @@ app.include_router(admin.router)
 app.include_router(search.router)
 app.include_router(departments.router)
 app.include_router(files.router)
+app.include_router(ai.router)
 
 
 @app.on_event("startup")

@@ -24,6 +24,7 @@ import AdminSidebar from './components/layout/AdminSidebar';
 import VerifyEmail from './pages/VerifyEmail';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import StudyAssistant from './pages/StudyAssistant';
 import type { ReactNode } from 'react';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
@@ -60,6 +61,7 @@ function AppRoutes() {
       <Route path="/bookmarks" element={<ProtectedRoute><Bookmarks /></ProtectedRoute>} />
       <Route path="/my-uploads" element={<ProtectedRoute><MyUploads /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+      <Route path="/study-assistant" element={<ProtectedRoute><StudyAssistant /></ProtectedRoute>} />
       <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
       <Route path="/admin/users" element={<AdminRoute><ManageUsers /></AdminRoute>} />
       <Route path="/admin/resources" element={<AdminRoute><ManageResources /></AdminRoute>} />

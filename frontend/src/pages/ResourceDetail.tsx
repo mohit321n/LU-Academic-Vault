@@ -22,6 +22,9 @@ export default function ResourceDetail() {
   const [hoverRating, setHoverRating] = useState(0);
   const [reportReason, setReportReason] = useState('');
   const [showReport, setShowReport] = useState(false);
+  const [aiResult, setAiResult] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+  const [showAi, setShowAi] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -92,6 +95,40 @@ export default function ResourceDetail() {
     setShowReport(false);
     setReportReason('');
     alert('Report submitted');
+  };
+
+  const handleAiSummarize = async () => {
+    if (!id) return;
+    setAiLoading(true);
+    setShowAi(true);
+    setAiResult('');
+    try {
+      const token = localStorage.getItem('access_token');
+      const res = await fetch(`/api/ai/summarize?resource_id=${id}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      setAiResult(data.summary || data.error || 'No result');
+    } catch { setAiResult('Failed to get AI summary'); }
+    setAiLoading(false);
+  };
+
+  const handleAiAnalyze = async () => {
+    if (!id) return;
+    setAiLoading(true);
+    setShowAi(true);
+    setAiResult('');
+    try {
+      const token = localStorage.getItem('access_token');
+      const res = await fetch(`/api/ai/analyze-pyq?resource_id=${id}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      setAiResult(data.analysis || data.error || 'No result');
+    } catch { setAiResult('Failed to analyze PYQ'); }
+    setAiLoading(false);
   };
 
   const formatSize = (bytes: number) => { for (const u of ['B','KB','MB','GB']) { if (bytes < 1024) return bytes.toFixed(1) + ' ' + u; bytes /= 1024; } return bytes.toFixed(1) + ' TB'; };
@@ -202,6 +239,28 @@ export default function ResourceDetail() {
           {user && <button onClick={handleBookmark} className={`px-6 py-2 border rounded-lg font-medium ${bookmarked ? 'bg-yellow-50 border-yellow-300 text-yellow-700' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}>{bookmarked ? 'Bookmarked' : 'Bookmark'}</button>}
           {user && !isOwner && <button onClick={() => setShowReport(true)} className="px-6 py-2 border border-gray-300 rounded-lg text-sm text-red-600 hover:bg-red-50">Report</button>}
         </div>
+
+        {isPdf && user && (
+          <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100">
+            <span className="text-xs text-gray-500 self-center">AI:</span>
+            <button onClick={handleAiSummarize} disabled={aiLoading} className="px-3 py-1 bg-purple-100 text-purple-700 rounded-lg text-xs font-medium hover:bg-purple-200 disabled:opacity-50">Summarize</button>
+            {resource.is_pyq && <button onClick={handleAiAnalyze} disabled={aiLoading} className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-lg text-xs font-medium hover:bg-indigo-200 disabled:opacity-50">Analyze PYQ</button>}
+          </div>
+        )}
+
+        {showAi && (
+          <div className="mt-4 p-4 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl border border-purple-200">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-semibold text-gray-900 flex items-center gap-2">🤖 AI Analysis</h3>
+              <button onClick={() => setShowAi(false)} className="text-gray-500 hover:text-gray-700">&times;</button>
+            </div>
+            {aiLoading ? (
+              <div className="text-center py-4 text-gray-500">Analyzing with AI...</div>
+            ) : (
+              <div className="whitespace-pre-wrap text-sm text-gray-700">{aiResult}</div>
+            )}
+          </div>
+        )}
       </div>
 
       {similar.length > 0 && (

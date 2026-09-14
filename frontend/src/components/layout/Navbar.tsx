@@ -22,6 +22,7 @@ export default function Navbar() {
               <Link to="/browse" className="text-gray-600 hover:text-blue-600 text-sm font-medium">Browse</Link>
               <Link to="/pyqs" className="text-gray-600 hover:text-blue-600 text-sm font-medium">PYQs</Link>
               {user && <Link to="/upload" className="text-gray-600 hover:text-blue-600 text-sm font-medium">Upload</Link>}
+              {user && <Link to="/study-assistant" className="text-gray-600 hover:text-purple-600 text-sm font-medium">🤖 AI</Link>}
               <Link to="/about" className="text-gray-600 hover:text-blue-600 text-sm font-medium">About</Link>
             </div>
           </div>
