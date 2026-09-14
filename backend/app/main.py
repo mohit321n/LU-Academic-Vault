@@ -1,10 +1,17 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.config import get_settings
 from app.database.connection import engine, Base, SessionLocal
 from app.database.seed import seed_database
 from app.routes import auth, resources, users, admin, search, departments, files, ai
+from app.middleware.error_handlers import (
+    global_exception_handler,
+    validation_exception_handler,
+    http_exception_handler,
+)
 
 settings = get_settings()
 
@@ -13,6 +20,10 @@ app = FastAPI(
     version=settings.APP_VERSION,
     description="Academic resource platform for Lucknow University students",
 )
+
+app.add_exception_handler(Exception, global_exception_handler)
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(StarletteHTTPException, http_exception_handler)
 
 app.add_middleware(
     CORSMiddleware,
