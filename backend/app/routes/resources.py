@@ -296,3 +296,71 @@ def check_bookmarked(
         Bookmark.resource_id == resource_id,
     ).first()
     return {"bookmarked": bookmarked is not None}
+
+
+@router.put("/{resource_id}", response_model=ResourceResponse)
+def update_resource(
+    resource_id: int,
+    update_data: ResourceUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    resource = db.query(Resource).filter(Resource.id == resource_id).first()
+    if not resource:
+        raise HTTPException(status_code=404, detail="Resource not found")
+    if resource.uploader_id != current_user.id and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized to edit this resource")
+
+    for field, value in update_data.model_dump(exclude_unset=True).items():
+        setattr(resource, field, value)
+    db.commit()
+    db.refresh(resource)
+    return ResourceResponse.model_validate(resource)
+
+
+@router.delete("/{resource_id}")
+def delete_resource(
+    resource_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    resource = db.query(Resource).filter(Resource.id == resource_id).first()
+    if not resource:
+        raise HTTPException(status_code=404, detail="Resource not found")
+    if resource.uploader_id != current_user.id and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized to delete this resource")
+
+    file_path = os.path.join(settings.UPLOAD_DIR, resource.file_path)
+    if os.path.exists(file_path):
+        os.remove(file_path)
+
+    db.delete(resource)
+    db.commit()
+    return {"message": "Resource deleted"}
+
+
+@router.get("/{resource_id}/similar")
+def get_similar_resources(
+    resource_id: int,
+    db: Session = Depends(get_db),
+):
+    resource = db.query(Resource).filter(Resource.id == resource_id).first()
+    if not resource:
+        raise HTTPException(status_code=404, detail="Resource not found")
+
+    similar = db.query(Resource).filter(
+        Resource.id != resource_id,
+        Resource.status == ResourceStatus.APPROVED,
+        Resource.subject_id == resource.subject_id,
+    ).limit(5).all()
+
+    if len(similar) < 5:
+        more = db.query(Resource).filter(
+            Resource.id != resource_id,
+            Resource.status == ResourceStatus.APPROVED,
+            Resource.resource_type == resource.resource_type,
+            Resource.course_id == resource.course_id,
+        ).limit(5 - len(similar)).all()
+        similar.extend(more)
+
+    return [{"id": r.id, "title": r.title, "resource_type": r.resource_type, "download_count": r.download_count} for r in similar]

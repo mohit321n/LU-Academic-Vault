@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from app.config import get_settings
 from app.database.connection import engine, Base, SessionLocal
 from app.database.seed import seed_database
-from app.routes import auth, resources, users, admin, search, departments
+from app.routes import auth, resources, users, admin, search, departments, files
 
 settings = get_settings()
 
