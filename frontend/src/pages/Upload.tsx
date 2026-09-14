@@ -11,16 +11,52 @@ export default function Upload() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [form, setForm] = useState({ title: '', description: '', resource_type: 'notes', department_id: '', course_id: '', subject_id: '', semester: '', academic_year: '', exam_type: '', university: '', is_pyq: false, pyq_year: '', tags: '' });
   const [file, setFile] = useState<File | null>(null);
+  const [filePreview, setFilePreview] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [duplicates, setDuplicates] = useState<any[]>([]);
+  const [checkingDuplicate, setCheckingDuplicate] = useState(false);
 
   useEffect(() => { deptApi.list().then(setDepartments); }, []);
   useEffect(() => { if (form.department_id) deptApi.getCourses(Number(form.department_id)).then(setCourses); }, [form.department_id]);
   useEffect(() => { if (form.course_id) deptApi.getSubjects(Number(form.course_id), form.semester ? Number(form.semester) : undefined).then(setSubjects); }, [form.course_id, form.semester]);
 
+  const checkDuplicate = async (title: string) => {
+    if (title.length < 3) { setDuplicates([]); return; }
+    setCheckingDuplicate(true);
+    try {
+      const params = new URLSearchParams({ title });
+      if (form.subject_id) params.set('subject_id', form.subject_id);
+      if (form.academic_year) params.set('academic_year', form.academic_year);
+      const res = await fetch(`/api/resources/check-duplicate?${params}`);
+      const data = await res.json();
+      setDuplicates(data.resources || []);
+    } catch {}
+    setCheckingDuplicate(false);
+  };
+
+  useEffect(() => {
+    const timer = setTimeout(() => checkDuplicate(form.title), 500);
+    return () => clearTimeout(timer);
+  }, [form.title, form.subject_id, form.academic_year]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setFile(f);
+    if (f.type === 'application/pdf') {
+      setFilePreview(URL.createObjectURL(f));
+    } else if (f.type.startsWith('image/')) {
+      setFilePreview(URL.createObjectURL(f));
+    } else {
+      setFilePreview(null);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file) { setError('Please select a file'); return; }
+    if (duplicates.length > 0 && !confirm('Similar resources exist. Upload anyway?')) return;
     setError('');
     setLoading(true);
     try {
@@ -37,9 +73,18 @@ export default function Upload() {
       <h1 className="text-3xl font-bold text-gray-900 mb-6">Upload Resource</h1>
       <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl border border-gray-200">
         {error && <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{error}</div>}
+
+        {duplicates.length > 0 && (
+          <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-sm font-medium text-yellow-800 mb-1">⚠ Possible duplicates found:</p>
+            {duplicates.map(d => <div key={d.id} className="text-xs text-yellow-700">• {d.title} ({d.resource_type})</div>)}
+          </div>
+        )}
+
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
           <input type="text" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" required />
+          {checkingDuplicate && <p className="text-xs text-gray-400 mt-1">Checking for duplicates...</p>}
         </div>
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
@@ -101,8 +146,19 @@ export default function Upload() {
         </div>}
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-1">File *</label>
-          <input ref={fileRef} type="file" onChange={e => setFile(e.target.files?.[0] || null)} accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" required />
+          <input ref={fileRef} type="file" onChange={handleFileChange} accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" required />
           <p className="text-xs text-gray-500 mt-1">PDF, DOC, DOCX, PPT, PPTX, PNG, JPG (max 50MB)</p>
+          {filePreview && file?.type === 'application/pdf' && (
+            <div className="mt-2 border border-gray-200 rounded-lg overflow-hidden">
+              <iframe src={filePreview} className="w-full h-64" title="PDF Preview" />
+            </div>
+          )}
+          {filePreview && file?.type.startsWith('image/') && (
+            <div className="mt-2 border border-gray-200 rounded-lg overflow-hidden">
+              <img src={filePreview} alt="Preview" className="max-h-48 mx-auto" />
+            </div>
+          )}
+          {file && !filePreview && <p className="text-sm text-green-600 mt-1">✓ {file.name} ({(file.size / 1024 / 1024).toFixed(1)} MB)</p>}
         </div>
         <button type="submit" disabled={loading} className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium">{loading ? 'Uploading...' : 'Upload Resource'}</button>
       </form>

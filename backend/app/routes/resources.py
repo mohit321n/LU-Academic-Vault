@@ -364,3 +364,25 @@ def get_similar_resources(
         similar.extend(more)
 
     return [{"id": r.id, "title": r.title, "resource_type": r.resource_type, "download_count": r.download_count} for r in similar]
+
+
+@router.get("/check-duplicate")
+def check_duplicate(
+    title: str,
+    subject_id: int = None,
+    academic_year: str = None,
+    db: Session = Depends(get_db),
+):
+    query = db.query(Resource).filter(Resource.status == ResourceStatus.APPROVED)
+    title_term = f"%{title}%"
+    query = query.filter(Resource.title.ilike(title_term))
+    if subject_id:
+        query = query.filter(Resource.subject_id == subject_id)
+    if academic_year:
+        query = query.filter(Resource.academic_year == academic_year)
+
+    existing = query.limit(5).all()
+    return {
+        "duplicates_found": len(existing) > 0,
+        "resources": [{"id": r.id, "title": r.title, "resource_type": r.resource_type} for r in existing],
+    }

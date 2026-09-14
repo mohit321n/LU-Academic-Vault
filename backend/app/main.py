@@ -30,6 +30,7 @@ app.include_router(users.router)
 app.include_router(admin.router)
 app.include_router(search.router)
 app.include_router(departments.router)
+app.include_router(files.router)
 
 
 @app.on_event("startup")
