@@ -8,8 +8,23 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  const getPasswordStrength = (pw: string) => {
+    let score = 0;
+    if (pw.length >= 8) score++;
+    if (/[A-Z]/.test(pw)) score++;
+    if (/[a-z]/.test(pw)) score++;
+    if (/[0-9]/.test(pw)) score++;
+    if (/[!@#$%^&*(),.?":{}|<>]/.test(pw)) score++;
+    return score;
+  };
+
+  const strength = getPasswordStrength(form.password);
+  const strengthLabels = ['', 'Very Weak', 'Weak', 'Fair', 'Strong', 'Very Strong'];
+  const strengthColors = ['', 'bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-blue-500', 'bg-green-500'];
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (strength < 3) { setError('Password is too weak. Use uppercase, lowercase, numbers, and symbols.'); return; }
     setError('');
     setLoading(true);
     try {
@@ -44,7 +59,13 @@ export default function Register() {
           </div>
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-            <input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" minLength={6} required />
+            <input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" required />
+            {form.password && (
+              <div className="mt-2">
+                <div className="flex gap-1 mb-1">{[1,2,3,4,5].map(i => <div key={i} className={`h-1 flex-1 rounded ${i <= strength ? strengthColors[strength] : 'bg-gray-200'}`} />)}</div>
+                <p className="text-xs text-gray-500">{strengthLabels[strength]} — 8+ chars, uppercase, lowercase, number, symbol</p>
+              </div>
+            )}
           </div>
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>

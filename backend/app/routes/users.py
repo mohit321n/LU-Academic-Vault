@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException
+import os
+import uuid
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import Optional
 from app.database.connection import get_db
@@ -7,7 +9,9 @@ from app.models.resource import Resource
 from app.models.bookmark import Bookmark
 from app.schemas.user import UserResponse, UserUpdate
 from app.middleware.auth import get_current_user
+from app.config import get_settings
 
+settings = get_settings()
 router = APIRouter(prefix="/api/users", tags=["users"])
 
 
@@ -59,3 +63,37 @@ def get_my_bookmarks(
         "bookmarks": [{"id": b.id, "resource_id": b.resource_id, "created_at": b.created_at} for b in bookmarks],
         "total": total,
     }
+
+
+@router.post("/me/avatar")
+async def upload_avatar(
+    avatar: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    allowed = ["image/jpeg", "image/png", "image/webp"]
+    if avatar.content_type not in allowed:
+        raise HTTPException(status_code=400, detail="Only JPG, PNG, WebP images allowed")
+
+    content = await avatar.read()
+    if len(content) > 5242880:
+        raise HTTPException(status_code=400, detail="Avatar must be under 5MB")
+
+    os.makedirs(os.path.join(settings.UPLOAD_DIR, "avatars"), exist_ok=True)
+    ext = avatar.filename.rsplit(".", 1)[1].lower() if "." in avatar.filename else "jpg"
+    filename = f"{uuid.uuid4()}.{ext}"
+    filepath = os.path.join(settings.UPLOAD_DIR, "avatars", filename)
+
+    with open(filepath, "wb") as f:
+        f.write(content)
+
+    if current_user.avatar_url:
+        old_path = os.path.join(settings.UPLOAD_DIR, "avatars", current_user.avatar_url.split("/")[-1])
+        if os.path.exists(old_path):
+            os.remove(old_path)
+
+    current_user.avatar_url = f"/uploads/avatars/{filename}"
+    db.commit()
+    db.refresh(current_user)
+
+    return {"avatar_url": current_user.avatar_url}

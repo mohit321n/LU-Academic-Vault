@@ -40,9 +40,12 @@ export default function Login() {
             <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
             <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" required />
           </div>
-          <div className="mb-6">
+          <div className="mb-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
             <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" required />
+          </div>
+          <div className="mb-6 text-right">
+            <Link to="/forgot-password" className="text-sm text-blue-600 hover:text-blue-700">Forgot Password?</Link>
           </div>
           <button type="submit" disabled={loading} className="w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium">
             {loading ? 'Signing in...' : 'Sign In'}

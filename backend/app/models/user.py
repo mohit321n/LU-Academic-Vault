@@ -25,6 +25,12 @@ class User(Base):
     semester = Column(Integer, nullable=True)
     roll_number = Column(String(50), nullable=True)
     avatar_url = Column(String(500), nullable=True)
+    verification_token = Column(String(255), nullable=True)
+    verified_at = Column(DateTime(timezone=True), nullable=True)
+    reset_token = Column(String(255), nullable=True)
+    reset_token_expiry = Column(DateTime(timezone=True), nullable=True)
+    last_login = Column(DateTime(timezone=True), nullable=True)
+    login_count = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
