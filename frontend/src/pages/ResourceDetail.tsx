@@ -17,6 +17,11 @@ export default function ResourceDetail() {
   const [showPreview, setShowPreview] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({ title: '', description: '' });
+  const [userRating, setUserRating] = useState(0);
+  const [userHelpful, setUserHelpful] = useState<boolean | null>(null);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [reportReason, setReportReason] = useState('');
+  const [showReport, setShowReport] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -24,7 +29,13 @@ export default function ResourceDetail() {
         setResource(r);
         setEditForm({ title: r.title, description: r.description || '' });
       }).finally(() => setLoading(false));
-      if (user) resourcesApi.checkBookmarked(Number(id)).then(d => setBookmarked(d.bookmarked));
+      if (user) {
+        resourcesApi.checkBookmarked(Number(id)).then(d => setBookmarked(d.bookmarked));
+        fetch(`/api/resources/${id}/my-rating`, { headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` } })
+          .then(r => r.ok ? r.json() : null)
+          .then(d => { if (d) { setUserRating(d.stars); setUserHelpful(d.helpful); } })
+          .catch(() => {});
+      }
       fetch(`/api/resources/${id}/similar`).then(r => r.json()).then(setSimilar).catch(() => {});
     }
   }, [id, user]);
@@ -34,6 +45,20 @@ export default function ResourceDetail() {
     const res = await resourcesApi.bookmark(Number(id));
     setBookmarked(res.bookmarked);
     if (resource) setResource({ ...resource, bookmark_count: resource.bookmark_count + (res.bookmarked ? 1 : -1) });
+  };
+
+  const handleRate = async (stars: number) => {
+    if (!user || !id) return;
+    const res = await resourcesApi.rate(Number(id), stars, userHelpful ?? undefined);
+    setUserRating(stars);
+    if (resource) setResource({ ...resource, rating_avg: res.rating_avg, rating_count: res.rating_count });
+  };
+
+  const handleHelpful = async (helpful: boolean) => {
+    if (!user || !id) return;
+    const res = await resourcesApi.rate(Number(id), userRating || 3, helpful);
+    setUserHelpful(helpful);
+    if (resource) setResource({ ...resource, rating_avg: res.rating_avg });
   };
 
   const handleDownload = async () => {
@@ -58,15 +83,18 @@ export default function ResourceDetail() {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify(editForm),
     });
-    if (res.ok) {
-      const updated = await res.json();
-      setResource({ ...resource!, ...updated });
-      setEditing(false);
-    }
+    if (res.ok) { const updated = await res.json(); setResource({ ...resource!, ...updated }); setEditing(false); }
+  };
+
+  const handleReport = async () => {
+    if (!id || !reportReason) return;
+    await resourcesApi.report(Number(id), reportReason);
+    setShowReport(false);
+    setReportReason('');
+    alert('Report submitted');
   };
 
   const formatSize = (bytes: number) => { for (const u of ['B','KB','MB','GB']) { if (bytes < 1024) return bytes.toFixed(1) + ' ' + u; bytes /= 1024; } return bytes.toFixed(1) + ' TB'; };
-
   const isOwner = user && resource && user.id === resource.uploader_id;
   const isAdmin = user?.role === 'admin';
   const isPdf = resource?.file_name?.toLowerCase().endsWith('.pdf');
@@ -88,6 +116,27 @@ export default function ResourceDetail() {
         </div>
       )}
 
+      {showReport && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={() => setShowReport(false)}>
+          <div className="bg-white rounded-xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Report Resource</h2>
+            <select value={reportReason} onChange={e => setReportReason(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-4">
+              <option value="">Select reason...</option>
+              <option value="incorrect">Incorrect material</option>
+              <option value="duplicate">Duplicate material</option>
+              <option value="spam">Spam</option>
+              <option value="copyright">Copyright issue</option>
+              <option value="inappropriate">Inappropriate content</option>
+              <option value="wrong_category">Wrong subject/category</option>
+            </select>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setShowReport(false)} className="px-4 py-2 border border-gray-300 rounded-lg text-sm">Cancel</button>
+              <button onClick={handleReport} disabled={!reportReason} className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm disabled:opacity-50">Submit Report</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <div className="flex items-start justify-between mb-4">
           <div className="flex gap-2">
@@ -105,8 +154,8 @@ export default function ResourceDetail() {
             <input type="text" value={editForm.title} onChange={e => setEditForm({ ...editForm, title: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-2" />
             <textarea value={editForm.description} onChange={e => setEditForm({ ...editForm, description: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg" rows={3} />
             <div className="flex gap-2 mt-2">
-              <button onClick={handleSaveEdit} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">Save</button>
-              <button onClick={() => setEditing(false)} className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
+              <button onClick={handleSaveEdit} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">Save</button>
+              <button onClick={() => setEditing(false)} className="px-4 py-2 border border-gray-300 rounded-lg text-sm">Cancel</button>
             </div>
           </div>
         ) : (
@@ -126,10 +175,32 @@ export default function ResourceDetail() {
         {resource.semester && <p className="text-sm text-gray-600 mb-1">Semester: {resource.semester}</p>}
         {resource.academic_year && <p className="text-sm text-gray-600 mb-1">Academic Year: {resource.academic_year}</p>}
 
+        <div className="flex items-center gap-6 mt-6 pb-6 border-b">
+          <div>
+            <p className="text-xs text-gray-500 mb-1">Rate this resource</p>
+            <div className="flex items-center gap-1">
+              {[1,2,3,4,5].map(s => (
+                <button key={s} onClick={() => handleRate(s)} onMouseEnter={() => setHoverRating(s)} onMouseLeave={() => setHoverRating(0)} className={`text-2xl transition ${(hoverRating || userRating) >= s ? 'text-yellow-400' : 'text-gray-300'}`}>★</button>
+              ))}
+              <span className="ml-2 text-sm text-gray-500">({resource.rating_count})</span>
+            </div>
+          </div>
+          {user && (
+            <div>
+              <p className="text-xs text-gray-500 mb-1">Was this helpful?</p>
+              <div className="flex gap-2">
+                <button onClick={() => handleHelpful(true)} className={`px-3 py-1 rounded-lg text-sm border ${userHelpful === true ? 'bg-green-100 border-green-300 text-green-700' : 'border-gray-300 hover:bg-gray-50'}`}>👍 Yes</button>
+                <button onClick={() => handleHelpful(false)} className={`px-3 py-1 rounded-lg text-sm border ${userHelpful === false ? 'bg-red-100 border-red-300 text-red-700' : 'border-gray-300 hover:bg-gray-50'}`}>👎 No</button>
+              </div>
+            </div>
+          )}
+        </div>
+
         <div className="flex gap-3 mt-6">
           {isPdf && <button onClick={() => setShowPreview(true)} className="px-6 py-2 border border-gray-300 rounded-lg font-medium hover:bg-gray-50">Preview</button>}
           <button onClick={handleDownload} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">Download</button>
           {user && <button onClick={handleBookmark} className={`px-6 py-2 border rounded-lg font-medium ${bookmarked ? 'bg-yellow-50 border-yellow-300 text-yellow-700' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}>{bookmarked ? 'Bookmarked' : 'Bookmark'}</button>}
+          {user && !isOwner && <button onClick={() => setShowReport(true)} className="px-6 py-2 border border-gray-300 rounded-lg text-sm text-red-600 hover:bg-red-50">Report</button>}
         </div>
       </div>
 
