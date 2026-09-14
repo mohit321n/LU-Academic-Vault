@@ -20,6 +20,7 @@ import ManageUsers from './pages/admin/ManageUsers';
 import ManageResources from './pages/admin/ManageResources';
 import Reports from './pages/admin/Reports';
 import ManageDepartments from './pages/admin/ManageDepartments';
+import AdminSidebar from './components/layout/AdminSidebar';
 import VerifyEmail from './pages/VerifyEmail';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
@@ -37,7 +38,7 @@ function AdminRoute({ children }: { children: ReactNode }) {
   if (loading) return <div className="flex items-center justify-center min-h-[60vh]"><div className="text-gray-500">Loading...</div></div>;
   if (!user) return <Navigate to="/login" />;
   if (user.role !== 'admin') return <Navigate to="/dashboard" />;
-  return <>{children}</>;
+  return <div className="flex"><AdminSidebar /><div className="flex-1">{children}</div></div>;
 }
 
 function AppRoutes() {
