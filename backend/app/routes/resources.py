@@ -285,6 +285,21 @@ def report_resource(
     return {"message": "Report submitted successfully"}
 
 
+@router.get("/{resource_id}/my-rating")
+def get_my_rating(
+    resource_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    rating = db.query(Rating).filter(
+        Rating.user_id == current_user.id,
+        Rating.resource_id == resource_id,
+    ).first()
+    if rating:
+        return {"stars": rating.stars, "helpful": rating.helpful}
+    return {"stars": 0, "helpful": None}
+
+
 @router.get("/{resource_id}/bookmarked")
 def check_bookmarked(
     resource_id: int,
@@ -386,3 +401,22 @@ def check_duplicate(
         "duplicates_found": len(existing) > 0,
         "resources": [{"id": r.id, "title": r.title, "resource_type": r.resource_type} for r in existing],
     }
+
+
+@router.get("/stats/by-type")
+def stats_by_type(db: Session = Depends(get_db)):
+    results = db.query(
+        Resource.resource_type,
+        sql_func.count(Resource.id),
+        sql_func.coalesce(sql_func.sum(Resource.download_count), 0),
+    ).filter(Resource.status == ResourceStatus.APPROVED).group_by(Resource.resource_type).all()
+    return {"stats": [{"type": r[0], "count": r[1], "downloads": r[2]} for r in results]}
+
+
+@router.get("/stats/by-semester")
+def stats_by_semester(db: Session = Depends(get_db)):
+    results = db.query(
+        Resource.semester,
+        sql_func.count(Resource.id),
+    ).filter(Resource.status == ResourceStatus.APPROVED, Resource.semester.isnot(None)).group_by(Resource.semester).order_by(Resource.semester).all()
+    return {"stats": [{"semester": r[0], "count": r[1]} for r in results]}
