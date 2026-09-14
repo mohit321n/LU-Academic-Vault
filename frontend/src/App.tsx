@@ -19,6 +19,7 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import ManageUsers from './pages/admin/ManageUsers';
 import ManageResources from './pages/admin/ManageResources';
 import Reports from './pages/admin/Reports';
+import ManageDepartments from './pages/admin/ManageDepartments';
 import VerifyEmail from './pages/VerifyEmail';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
@@ -62,6 +63,7 @@ function AppRoutes() {
       <Route path="/admin/users" element={<AdminRoute><ManageUsers /></AdminRoute>} />
       <Route path="/admin/resources" element={<AdminRoute><ManageResources /></AdminRoute>} />
       <Route path="/admin/reports" element={<AdminRoute><Reports /></AdminRoute>} />
+      <Route path="/admin/departments" element={<AdminRoute><ManageDepartments /></AdminRoute>} />
     </Routes>
   );
 }
